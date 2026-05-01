@@ -1454,291 +1454,32 @@ IMPORTANT RULES:
 
   // CALL GEMINI API
   async function callClaude(messages, systemPrompt) {
-    const GEMINI_API_KEY = 'AIzaSyA5n20kt1DXjQYSo7uZrzz9UE-LwLoYYU4';
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const GEMINI_API_KEY = 'AIzaSyBNBRmUpT4cX-XcQDmslU8JQ6fZLpJ13Sc';
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
-    // Build a single prompt combining system + conversation
     let fullPrompt = systemPrompt + '\n\n';
     messages.forEach(m => {
       fullPrompt += (m.role === 'user' ? 'User: ' : 'Assistant: ') + m.content + '\n\n';
     });
-    fullPrompt += 'Assistant:';
 
     const response = await fetch(GEMINI_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          role: 'user',
-          parts: [{ text: fullPrompt }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2000
-        }
+        contents: [{ parts: [{ text: fullPrompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
       })
     });
 
-    if (!response.ok) {
-      const errData = await response.json();
-      console.error('Gemini API error:', errData);
-      throw new Error(errData.error?.message || 'API call failed');
-    }
-
     const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
-    if (!data.candidates || !data.candidates[0]) throw new Error('No response from Gemini');
+    console.log('Gemini response:', JSON.stringify(data).substring(0, 300));
+    
+    if (data.error) throw new Error('Gemini error: ' + data.error.message + ' (code: ' + data.error.code + ')');
+    if (!data.candidates || !data.candidates[0]) throw new Error('No candidates in response: ' + JSON.stringify(data));
     return data.candidates[0].content.parts[0].text;
   }
 
-  // GENERATE REPORT
-  async function generateReport() {
-    showLoading('Generating your counsellor report...');
-    setProgress(80);
-
-    const reportPrompt = buildReportPrompt();
-
-    try {
-      const reportJson = await callClaude([{ role: 'user', content: 'Generate the screening report now.' }], reportPrompt);
-      const clean = reportJson.replace(/```json|```/g, '').trim();
-      const report = JSON.parse(clean);
-      hideLoading();
-      renderReport(report);
-    } catch(e) {
-      console.error('Report error:', e);
-      hideLoading();
-      renderFallbackReport(e.message);
-    }
-  }
-
-  function buildReportPrompt() {
-    const conversation = chatHistory.map(m => `${m.role === 'user' ? 'Student' : 'AI'}: ${m.content}`).join('\n');
-
-    return `You are AdmitIQ's reporting engine. Generate a comprehensive student screening report based on the profile and conversation below.
-
-STUDENT PROFILE:
-Name: ${formData.name}
-Email: ${formData.email}
-Phone: ${formData.phone}
-Study Level: ${formData.studyLevel}
-Field of Study: ${formData.fieldOfStudy}
-Academic History: ${formData.academicHistory}
-English: ${formData.englishTest} ${formData.testScore ? '| ' + formData.testScore : ''}
-Work Experience: ${formData.workExperience || 'None mentioned'}
-Country Preference: ${formData.countryPreference}
-Target Intake: ${formData.targetIntake}
-Annual Budget: ${formData.budget}
-Goals: ${formData.goals.join(', ')}
-
-CHAT CONVERSATION:
-${conversation}
-
-SCORING RULES:
-Score each of these 6 classifier questions (1-3 points each, max 18):
-1. Field clarity: specific=3, partial=2, none=1
-2. Academic history detail: full details=3, partial=2, vague=1
-3. English proficiency: IELTS 6.0+ or equivalent=3, planning/english medium=2, none=1
-4. Country preference: named countries=3, open=1
-5. Timeline: within 12 months=3, 12-18 months=2, beyond 18=1, not decided=1
-6. Budget: ₹15L+=3, ₹10-15L=2, below ₹10L=1
-
-Final Score = (total/18) × 100
-67-100 = Application Ready, 34-66 = Potential Fit, 0-33 = Discovery Stage
-
-FLAGS to check:
-- Distance/Open University degree
-- Last education more than 10 years ago
-- More than 20 backlogs in graduation
-- More than 6 backlogs in PG
-- Two or more PG degrees asking for another PG
-- Budget ₹10-15L (limited options)
-- Intake within 1-2 months (unrealistic)
-
-COUNTRY MATCHING (use real-time awareness of current visa/policy situation):
-Match based on: Goal → Budget → Academic profile → Field
-Strong Fit = 2-3 countries, Possible = 2-3 countries
-
-COUNSELLOR ACTION:
-- Call Now: Application Ready + strong profile
-- Nurture: Potential Fit or needs preparation
-- Low Priority: Discovery Stage
-
-Respond ONLY with a valid JSON object, no markdown, no explanation:
-{
-  "studentName": "",
-  "date": "",
-  "summary": "",
-  "readinessCategory": "",
-  "readinessScore": 0,
-  "scoreBreakdown": "",
-  "keyData": {
-    "studyLevel": "",
-    "field": "",
-    "academics": "",
-    "english": "",
-    "workExperience": "",
-    "targetIntake": "",
-    "budget": "",
-    "goals": ""
-  },
-  "flags": [],
-  "countries": {
-    "strongFit": [{"flag":"🇨🇦","name":"","reason":""}],
-    "possible": [{"flag":"🇬🇧","name":"","reason":""}],
-    "lowProbability": [{"flag":"","name":"","reason":""}],
-    "notRecommended": []
-  },
-  "counsellorAction": "",
-  "nextSteps": []
-}`;
-  }
-
-  // RENDER REPORT
-  function renderReport(r) {
-    document.getElementById('chatSection').style.display = 'none';
-    document.getElementById('reportSection').style.display = 'block';
-    setPhase(3);
-    setProgress(100);
-
-    document.getElementById('reportMeta').textContent = `${r.studentName} · Generated ${new Date().toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'})}`;
-
-    const score = r.readinessScore;
-    const categoryClass = score >= 67 ? 'ready' : score >= 34 ? 'potential' : 'discovery';
-    const categoryLabel = r.readinessCategory;
-    const actionLabel = r.counsellorAction;
-    const actionMap = { 'Call Now': 0, 'Nurture': 1, 'Low Priority': 2 };
-    const actionIdx = actionMap[actionLabel] ?? 1;
-
-    const flagsHtml = r.flags && r.flags.length > 0
-      ? r.flags.map(f => `<div class="flag-item"><span class="flag-icon">⚠️</span>${f}</div>`).join('')
-      : '<div class="flag-item"><span class="flag-icon">✅</span>No flags identified</div>';
-
-    const renderCountries = (arr, type) => arr && arr.length > 0
-      ? arr.map(c => `
-          <div class="country-card ${type}">
-            <div class="country-flag">${c.flag}</div>
-            <div class="country-info">
-              <div class="country-name">${c.name}</div>
-              <div class="country-reason">${c.reason}</div>
-            </div>
-          </div>`).join('') : '';
-
-    const nextStepsHtml = r.nextSteps && r.nextSteps.length > 0
-      ? r.nextSteps.map((s,i) => `
-          <div class="next-step">
-            <div class="step-number">${String(i+1).padStart(2,'0')}</div>
-            <div class="step-text">${s}</div>
-          </div>`).join('') : '';
-
-    const actions = [
-      { icon: '📞', title: 'Call Now', sub: 'High intent, strong profile' },
-      { icon: '🌱', title: 'Nurture', sub: 'Needs preparation time' },
-      { icon: '🕐', title: 'Low Priority', sub: 'Follow up in 3–6 months' }
-    ];
-
-    document.getElementById('reportBody').innerHTML = `
-      <div class="report-section">
-        <div class="report-section-title">Student Summary</div>
-        <div class="report-summary">${r.summary}</div>
-      </div>
-
-      <div class="report-section">
-        <div class="report-section-title">Readiness Assessment</div>
-        <div class="readiness-badge badge-${categoryClass}">
-          ${categoryClass === 'ready' ? '✅' : categoryClass === 'potential' ? '🔵' : '⏳'} ${categoryLabel}
-        </div>
-        <div class="score-display">
-          <div class="score-number">${score}</div>
-          <div style="flex:1">
-            <div style="font-size:11px;color:var(--text-light);margin-bottom:6px;font-family:'DM Mono',monospace;">READINESS SCORE / 100</div>
-            <div class="score-bar-container">
-              <div class="score-bar" style="width:${score}%"></div>
-            </div>
-            <div style="font-size:11px;color:var(--text-light);margin-top:6px;">${r.scoreBreakdown || ''}</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="report-section">
-        <div class="report-section-title">Key Data Points</div>
-        <div class="data-points">
-          <div class="data-point"><div class="data-point-label">Study Level</div><div class="data-point-value">${r.keyData.studyLevel}</div></div>
-          <div class="data-point"><div class="data-point-label">Field / Program</div><div class="data-point-value">${r.keyData.field}</div></div>
-          <div class="data-point"><div class="data-point-label">Academic Background</div><div class="data-point-value">${r.keyData.academics}</div></div>
-          <div class="data-point"><div class="data-point-label">English Proficiency</div><div class="data-point-value">${r.keyData.english}</div></div>
-          <div class="data-point"><div class="data-point-label">Work Experience</div><div class="data-point-value">${r.keyData.workExperience}</div></div>
-          <div class="data-point"><div class="data-point-label">Target Intake</div><div class="data-point-value">${r.keyData.targetIntake}</div></div>
-          <div class="data-point"><div class="data-point-label">Annual Budget</div><div class="data-point-value">${r.keyData.budget}</div></div>
-          <div class="data-point"><div class="data-point-label">Primary Goals</div><div class="data-point-value">${r.keyData.goals}</div></div>
-        </div>
-      </div>
-
-      ${r.flags && r.flags.length > 0 ? `
-      <div class="report-section">
-        <div class="report-section-title">⚠️ Flags for Counsellor</div>
-        <div class="flags-list">${flagsHtml}</div>
-      </div>` : ''}
-
-      <div class="report-section">
-        <div class="report-section-title">Country Recommendations</div>
-        ${r.countries.strongFit && r.countries.strongFit.length > 0 ? `
-        <div class="country-bucket">
-          <div class="bucket-label">✅ Strong Fit</div>
-          <div class="country-cards">${renderCountries(r.countries.strongFit, 'strong')}</div>
-        </div>` : ''}
-        ${r.countries.possible && r.countries.possible.length > 0 ? `
-        <div class="country-bucket">
-          <div class="bucket-label">🔵 Possible Options</div>
-          <div class="country-cards">${renderCountries(r.countries.possible, 'possible')}</div>
-        </div>` : ''}
-        ${r.countries.lowProbability && r.countries.lowProbability.length > 0 ? `
-        <div class="country-bucket">
-          <div class="bucket-label">⚠️ Low Probability</div>
-          <div class="country-cards">${renderCountries(r.countries.lowProbability, 'low')}</div>
-        </div>` : ''}
-        ${r.countries.notRecommended && r.countries.notRecommended.length > 0 ? `
-        <div class="country-bucket">
-          <div class="bucket-label">🚨 Not Recommended</div>
-          <div class="country-cards">${renderCountries(r.countries.notRecommended, 'not-recommended')}</div>
-        </div>` : ''}
-      </div>
-
-      <div class="report-section">
-        <div class="report-section-title">Counsellor Action</div>
-        <div class="action-recommendation">
-          ${actions.map((a,i) => `
-            <div class="action-card ${i === actionIdx ? 'selected-action' : ''}">
-              <div class="action-icon">${a.icon}</div>
-              <div class="action-title">${a.title}</div>
-              <div class="action-subtitle">${a.sub}</div>
-            </div>`).join('')}
-        </div>
-      </div>
-
-      ${r.nextSteps && r.nextSteps.length > 0 ? `
-      <div class="report-section">
-        <div class="report-section-title">Suggested Next Steps for Student</div>
-        <div class="next-steps">${nextStepsHtml}</div>
-      </div>` : ''}
-    `;
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  // FALLBACK REPORT
-  function renderFallbackReport() {
-    document.getElementById('chatSection').style.display = 'none';
-    document.getElementById('reportSection').style.display = 'block';
-    setPhase(3);
-    setProgress(100);
-    document.getElementById('reportMeta').textContent = `${formData.name} · ${new Date().toLocaleDateString('en-IN')}`;
-    document.getElementById('reportBody').innerHTML = `
-      <div class="report-section">
-        <p style="color:var(--text-mid);font-size:14px;">Report generation encountered an issue. Please ensure your API key is configured and try again.</p>
-      </div>`;
-  }
-
-  // LOADING
+    // LOADING
   function showLoading(text) {
     document.getElementById('loadingText').textContent = text || 'Processing...';
     document.getElementById('loadingOverlay').style.display = 'flex';
