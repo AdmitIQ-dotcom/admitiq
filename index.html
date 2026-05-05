@@ -34,12 +34,13 @@
       return data.choices[0].message.content;
     }
 
-    if (data.error) {
-      throw new Error(data.error);
-    }
+   if (data.error) {
+  const errorMessage = typeof data.error === "string"
+    ? data.error
+    : JSON.stringify(data.error);
 
-    throw new Error("Invalid response from AI");
-  }
+  throw new Error(errorMessage);
+}
 
   // (REST OF YOUR ORIGINAL SCRIPT CONTINUES SAME...)
 </script>
