@@ -70,13 +70,20 @@ async function sendMessage() {
 
     const data = await response.json();
 
-    const reply = data.choices[0].message.content;
+    let reply = "Something went wrong";
+
+    // ✅ SAFE RESPONSE HANDLING (fixes your error)
+    if (data && data.choices && data.choices.length > 0) {
+      reply = data.choices[0].message.content;
+    } else if (data.error) {
+      reply = "Error: " + data.error;
+    }
 
     addMessage("ai", reply);
     messages.push({ role: "assistant", content: reply });
 
   } catch (err) {
-    addMessage("ai", "Error connecting to AI.");
+    addMessage("ai", "Error connecting to AI");
     console.error(err);
   }
 }
