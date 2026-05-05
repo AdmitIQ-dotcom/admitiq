@@ -1,4 +1,46 @@
-<!-- ONLY CHANGE IS INSIDE SCRIPT: callClaude FUNCTION -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AdmitIQ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f0e8;
+      padding: 40px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    #chat {
+      margin-top: 20px;
+    }
+    .msg {
+      margin: 10px 0;
+    }
+    .user { color: blue; }
+    .ai { color: green; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>AdmitIQ – AI Student Screening</h2>
+
+  <input id="userInput" placeholder="Type your response..." />
+  <button onclick="sendMessage()">Send</button>
+
+  <div id="chat"></div>
+</div>
 
 <script>
   // STATE
@@ -7,40 +49,52 @@
   let chatTurnCount = 0;
   const MAX_CHAT_TURNS = 4;
 
-  // (ALL YOUR EXISTING CODE REMAINS SAME ABOVE...)
-
-  // 🔥 UPDATED FUNCTION (THIS IS THE ONLY CHANGE)
   async function callClaude(messages, systemPrompt) {
     const WORKER_URL = "https://crimson-field-90b7.hxmjgnw4vd.workers.dev/";
 
-    const response = await fetch(WORKER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages
-        ]
-      })
-    });
+    try {
+      const response = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages
+          ]
+        })
+      });
 
-    const data = await response.json();
-    console.log("Worker response:", data);
+      const data = await response.json();
+      console.log("FULL Worker response:", data);
 
-    // ✅ FIX: prevents crash you were seeing
-    if (data && data.choices && data.choices.length > 0) {
-      return data.choices[0].message.content;
+      if (data?.choices?.length > 0) {
+        return data.choices[0].message.content;
+      }
+
+      if (data?.error) {
+        if (typeof data.error === "string") {
+          throw new Error(data.error);
+        }
+
+        if (data.error.message) {
+          throw new Error(data.error.message);
+        }
+
+        throw new Error(JSON.stringify(data.error, null, 2));
+      }
+
+      // fallback
+      throw new Error("Unexpected API response: " + JSON.stringify(data));
+
+    } catch (err) {
+      console.error("AI ERROR:", err);
+      throw err;
     }
+  }
 
-   if (data.error) {
-  const errorMessage = typeof data.error === "string"
-    ? data.error
-    : JSON.stringify(data.error);
 
-  throw new Error(errorMessage);
-}
-
-  // (REST OF YOUR ORIGINAL SCRIPT CONTINUES SAME...)
 </script>
+</body>
+</html>
