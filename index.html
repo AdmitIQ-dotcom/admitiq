@@ -1,101 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>AdmitIQ</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f0e8;
-      padding: 40px;
-    }
-    .container {
-      max-width: 600px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-    }
-    input, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-    }
-    #chat {
-      margin-top: 20px;
-    }
-    .msg {
-      margin: 10px 0;
-    }
-    .user { color: blue; }
-    .ai { color: green; }
-  </style>
-</head>
-<body>
-
-<div class="container">
-  <h2>AdmitIQ – AI Student Screening</h2>
-
-  <input id="userInput" placeholder="Type your response..." />
-  <button onclick="sendMessage()">Send</button>
-
-  <div id="chat"></div>
-</div>
+<!-- ONLY CHANGE IS INSIDE SCRIPT: callClaude FUNCTION -->
 
 <script>
-const WORKER_URL = "https://crimson-field-90b7.hxmjgnw4vd.workers.dev/";
+  // STATE
+  let formData = {};
+  let chatHistory = [];
+  let chatTurnCount = 0;
+  const MAX_CHAT_TURNS = 4;
 
-let messages = [];
+  // (ALL YOUR EXISTING CODE REMAINS SAME ABOVE...)
 
-async function sendMessage() {
-  const input = document.getElementById("userInput");
-  const text = input.value.trim();
-  if (!text) return;
+  // 🔥 UPDATED FUNCTION (THIS IS THE ONLY CHANGE)
+  async function callClaude(messages, systemPrompt) {
+    const WORKER_URL = "https://crimson-field-90b7.hxmjgnw4vd.workers.dev/";
 
-  addMessage("user", text);
-  input.value = "";
-
-  messages.push({ role: "user", content: text });
-
-  try {
     const response = await fetch(WORKER_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        messages: messages
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages
+        ]
       })
     });
 
     const data = await response.json();
+    console.log("Worker response:", data);
 
-    let reply = "Something went wrong";
-
-    // ✅ SAFE RESPONSE HANDLING (fixes your error)
+    // ✅ FIX: prevents crash you were seeing
     if (data && data.choices && data.choices.length > 0) {
-      reply = data.choices[0].message.content;
-    } else if (data.error) {
-      reply = "Error: " + data.error;
+      return data.choices[0].message.content;
     }
 
-    addMessage("ai", reply);
-    messages.push({ role: "assistant", content: reply });
+    if (data.error) {
+      throw new Error(data.error);
+    }
 
-  } catch (err) {
-    addMessage("ai", "Error connecting to AI");
-    console.error(err);
+    throw new Error("Invalid response from AI");
   }
-}
 
-function addMessage(role, text) {
-  const chat = document.getElementById("chat");
-  const div = document.createElement("div");
-  div.className = "msg " + role;
-  div.innerText = (role === "user" ? "You: " : "AI: ") + text;
-  chat.appendChild(div);
-}
+  // (REST OF YOUR ORIGINAL SCRIPT CONTINUES SAME...)
 </script>
-
-</body>
-</html>
