@@ -1216,6 +1216,11 @@
         <button class="chat-send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
       </div>
       <div id="chatError" class="error-msg">Please type a response before sending.</div>
+      <div id="generateBtnContainer" style="display:none; margin-top:16px;">
+        <button class="btn btn-primary" onclick="generateReport()" style="background:var(--gold);color:var(--navy);">
+          Generate My Report →
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1402,7 +1407,8 @@ IMPORTANT RULES:
       if (shouldGenerate) {
         document.getElementById('sendBtn').disabled = true;
         document.getElementById('chatInput').disabled = true;
-        document.getElementById('chatInput').placeholder = 'Generating your report...';
+        document.getElementById('chatInput').placeholder = 'Chat complete. Generating your report...';
+        document.getElementById('generateBtnContainer').style.display = 'block';
         setTimeout(generateReport, 2000);
       } else {
         document.getElementById('sendBtn').disabled = false;
