@@ -1391,10 +1391,19 @@ IMPORTANT RULES:
       addMessage('ai', response);
       chatHistory.push({ role: 'assistant', content: response });
 
-      if (response.includes('GENERATE_REPORT') || chatTurnCount >= MAX_CHAT_TURNS) {
+      // Check if we should generate report
+      const shouldGenerate = response.includes('GENERATE_REPORT') || 
+                             chatTurnCount >= MAX_CHAT_TURNS ||
+                             response.toLowerCase().includes('generate your personalised report') ||
+                             response.toLowerCase().includes('generate your personalized report') ||
+                             response.toLowerCase().includes('enough information') ||
+                             response.toLowerCase().includes('generating your report');
+
+      if (shouldGenerate) {
         document.getElementById('sendBtn').disabled = true;
         document.getElementById('chatInput').disabled = true;
-        setTimeout(generateReport, 1500);
+        document.getElementById('chatInput').placeholder = 'Generating your report...';
+        setTimeout(generateReport, 2000);
       } else {
         document.getElementById('sendBtn').disabled = false;
       }
