@@ -1396,20 +1396,14 @@ IMPORTANT RULES:
       addMessage('ai', response);
       chatHistory.push({ role: 'assistant', content: response });
 
-      // Check if we should generate report
-      const shouldGenerate = response.includes('GENERATE_REPORT') || 
-                             chatTurnCount >= MAX_CHAT_TURNS ||
-                             response.toLowerCase().includes('generate your personalised report') ||
-                             response.toLowerCase().includes('generate your personalized report') ||
-                             response.toLowerCase().includes('enough information') ||
-                             response.toLowerCase().includes('generating your report');
+      // Always show generate button after first AI response
+      document.getElementById('generateBtnContainer').style.display = 'block';
 
-      if (shouldGenerate) {
+      // Force report after MAX_CHAT_TURNS
+      if (chatTurnCount >= MAX_CHAT_TURNS) {
         document.getElementById('sendBtn').disabled = true;
         document.getElementById('chatInput').disabled = true;
-        document.getElementById('chatInput').placeholder = 'Chat complete. Generating your report...';
-        document.getElementById('generateBtnContainer').style.display = 'block';
-        setTimeout(generateReport, 2000);
+        document.getElementById('chatInput').placeholder = 'Chat complete. Click Generate My Report below.';
       } else {
         document.getElementById('sendBtn').disabled = false;
       }
